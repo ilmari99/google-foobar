@@ -7,7 +7,7 @@ Well certainly!!
 
 Next I'm in a UNIX-like terminal - and so the journey began.
 
-[<img src="https://i.gyazo.com/5d433a0d2683a49f8c26a7a3efb2f9ac.jpg)">](Foobar Terminal)
+<img src="https://i.gyazo.com/5d433a0d2683a49f8c26a7a3efb2f9ac.jpg)">(Foobar Terminal)
 
 
 
