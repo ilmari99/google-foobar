@@ -8,7 +8,9 @@ There were a total of 9 problems:
 - Level 4: 2 problems (maximal flow in graph, ray tracing/mirroring)
 - Level 5: 1 problem (Group theory, abstract algebra, symmetries)
 
-I received an invitation for the challenge in the autumn of 2021 after Googling about Bayesian Optimizaton (still no idea what it is). Next thing I know, the space under the search bar unravels a little, revealing the text: *"Programmers like to solve problems, how would you like to solve one for Google?"*
+The solutions must be submitted in python2.7.13 or Java 7.
+
+I received an invitation for the challenge in the autumn of 2021 after Googling about Bayesian Optimizaton (still no idea what it is): The space under the search bar unravels a little, revealing the text: *"Programmers like to solve problems, how would you like to solve one for Google?"*
 
 Well certainly!!
 
