@@ -30,7 +30,7 @@ at bearing [1, 2] bounces off just the top wall before hitting the elite trainer
 ME
 ===
 
-Unfortunately I couldn't solve this one in time, even though I know how to do it. I had other things to prioritize during this challenge.
+Unfortunately I couldn't solve this one in time, even though I knew how to do it. I had other things to prioritize during this challenge.
 I did try to get it working, but there was too much debugging etc. to get it to work in time.
 
 I figured the solution after reading about problems related to paths in Billiard tables.
@@ -41,13 +41,12 @@ Since the laser reflects in the same angle, the mirrored room is a continuation 
 
 This was the third hardest problem in general, but hardest/second hardest to implement.
 
-
-NOTE: This code is currently terrible in quality, efficiency and readability
-
+NOTE: This code is quite terrible in quality and readability, but implements the correct solution.
 """
 
 import math
-
+import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 
 
 def relative_pos(wrt,pos):
@@ -67,7 +66,6 @@ class Tile:
         self.enemy_pos = tuple(enemy_pos)
         self.corner_pos = tuple(corner_pos)
         self.size = tuple(size)
-
         
     def to_relative_pos(self,pos):
         """Converts absolute position to coordinates relative to the tiles corner"""
@@ -78,13 +76,32 @@ class Tile:
         self.my_pos = tuple(relative_pos(new_origin,self.my_pos))
         self.enemy_pos = tuple(relative_pos(new_origin,self.enemy_pos))
         self.corner_pos = tuple(relative_pos(new_origin,self.corner_pos))
+        
+    def plot_tile(self,ax=None):
+        if ax is None:
+            ax = plt.subplots()[1]
+        linewidth = 1 if self.my_pos != (0,0) else 3    # Thiccer if this is the starting tile
+        ax.plot([self.corner_pos[0],
+                 self.corner_pos[0],
+                 self.corner_pos[0]+self.size[0],
+                 self.corner_pos[0]+self.size[0],
+                 self.corner_pos[0]],
+                
+                [self.corner_pos[1],
+                 self.corner_pos[1]+self.size[1],
+                 self.corner_pos[1]+self.size[1],
+                 self.corner_pos[1],
+                 self.corner_pos[1]],
+                linewidth=linewidth
+                )
+        ax.scatter(self.my_pos[0],self.my_pos[1],color="green")
+        ax.scatter(self.enemy_pos[0],self.enemy_pos[1],color="red")
 
 
 def copy_tile(tile,direction):
     cpos = list(tile.corner_pos)                    # Absolute positions of the tile to be copied
     my_pos = list(tile.my_pos)
     enemy_pos = list(tile.enemy_pos)
-    assert cpos != [0,0]                            # if corner is (0,0) then the cdinates are not absolute
     if abs(direction[1]) == 1:                      # If the tile is to be copied in the x-direction
         cpos[0] += direction[1]*tile.size[0]        # The new tiles absolute corner position is moved in the given x-direction by the width of the tile
         # The new absolute positions are calculated by adding the tile width to the original tiles absolute position,
@@ -125,10 +142,9 @@ def insert_center_tile_inplace(tile_array,tile):
     tile_array[row_ind][col_ind] = tile
     return (row_ind,col_ind)
 
-def tile_to_left_low_corner(tar,tile,ind):
-    """Tiles the tile array to the left upper corner.
-    First goes to left side of the array, and then to the top of the array."""
-    size = (len(tar[0]),len(tar))
+def tile_to_left_lower_corner(tar,tile,ind):
+    """Tiles the tile array to the left lower corner.
+    First goes to left side of the array, and then to the bottom of the array."""
     while True:
         if ind[1] > 0:
             d = (0,-1)
@@ -147,7 +163,7 @@ def tile_to_left_low_corner(tar,tile,ind):
 
 def gen_next_tile(tar,tile,ind):
     # First tile to the left upper corner
-    tar,tile,ind = tile_to_left_low_corner(tar, tile, ind)
+    tar,tile,ind = tile_to_left_lower_corner(tar, tile, ind)
     size = (len(tar[0]),len(tar))
     coldir = 1
     directions = [(0,1) for _ in range(size[0]-1)] + [(1,0)]
@@ -155,7 +171,7 @@ def gen_next_tile(tar,tile,ind):
     while True:
         if not directions:
             coldir = -1*coldir
-            directions = [(0,coldir) for _ in range(size[0]-1)] + [(1,0)]#[(xdir,0)]*dist[0] + [(0,-1)]
+            directions = [(0,coldir) for _ in range(size[0]-1)] + [(1,0)]
         d = directions.pop(0)
         ind = [ind[0]+d[0],ind[1]+d[1]]
         try:
@@ -171,48 +187,73 @@ def generate_directions(bounds,my_pos,enemy_pos,distance):
     ogtile.change_position_to_relative(my_pos)
     assert ogtile.my_pos == (0,0)
     tile_arr = create_none_array(bounds, distance, my_pos)
-    #print("Tile array size: (",len(tile_arr),",",len(tile_arr[0]),")")
     rind,cind = insert_center_tile_inplace(tile_arr,ogtile)
     next_tile_gen = gen_next_tile(tile_arr,ogtile,(rind,cind))
     for i,t in enumerate(next_tile_gen):
         yield t
 
 def heading_dist_corners(corner,tile_size):
+    """ Return a list of (heading, dist) tuples. These mark the directions and distances to a tiles corners from the beam.
+    Order: left lower corner, left upper corner, right upper corner, right lower corner
+    """
     corners = []
     ccorner = list(corner)
     for i in range(4):
         if i==0:
-            ccorner = [corner[0],corner[1]]
+            ccorner = (corner[0],corner[1])
         if i==1:
-            ccorner = [corner[0],corner[1] + tile_size[1]]
+            ccorner = (corner[0],corner[1] + tile_size[1])
         if i==2:
-            ccorner = [ccorner[0] + tile_size[0],ccorner[1]]
+            ccorner = (ccorner[0] + tile_size[0],ccorner[1])
         if i==3:
-            ccorner = [ccorner[0],ccorner[1]-tile_size[1]]
-        corners.append([math.atan2(ccorner[1],ccorner[0]),vector_length(ccorner)])
+            ccorner = (ccorner[0],ccorner[1]-tile_size[1])
+        corners.append((math.atan2(ccorner[1],ccorner[0]),vector_length(ccorner)))
     return corners
 
-    
-def solution(bounds,my_pos,enemy_pos,distance):
-    hits = {} # Heading - distance pairs
+
+def solution(bounds,my_pos,enemy_pos,distance,plot=False):
+    """Count the total number of directions where we can shoot a laser to hit the point at 'enemy_pos' from 'my_pos' in
+    a room with dimensions = bounds with the laser traveling a distance of 'distance'
+
+    Args:
+        bounds (tuple of 2 ints): Dimensions of the 2D room, (width, height)
+        my_pos (tuple of 2 ints): The position (in the room) from where the laser is shot
+        enemy_pos (tuple of 2 ints): the position to which we want to hit
+        distance (int): The distance that the laser is able to travel
+        plot (bool, optional): Whether we want to plot the mirrored rooms and the succesful directions. Defaults to False.
+
+    Returns:
+        int : total number of directions that hit the target
+    """
+    if plot:
+        # Initialize plot
+        fig,ax = plt.subplots()
+        ax.axes.set_visible(True)
+        c = Circle((0,0),distance,color='b',fill=False)
+        ax.add_patch(c)
+        fig.set_size_inches(10,10)
+    # Store the closest hit (heading,dist -pair) in a direction (heading) to either the target, self, or a corner
+    # If the beam at heading hits self, or a corner (in which cases the beam never hits the target) the distance is stored as a negative value to filter later
+    # If the beam hits the target
+    hits = {}
     for t in generate_directions(bounds,my_pos,enemy_pos,distance):
-        heading_to_enemy = math.atan2(t.enemy_pos[1],t.enemy_pos[0])
-        heading_to_me = math.atan2(t.my_pos[1],t.my_pos[0])
-        dist_to_enemy = vector_length(t.enemy_pos)
-        dist_to_me = vector_length(t.my_pos)
-        hits[heading_to_enemy] = dist_to_enemy if dist_to_enemy < abs(hits.get(heading_to_enemy,float("inf"))) else hits[heading_to_enemy]
-        hits[heading_to_me] = -dist_to_me if abs(hits.get(heading_to_me,float("inf"))) > dist_to_me else hits[heading_to_me]
-        for heading, dist in heading_dist_corners(t.corner_pos,bounds):
-            hits[heading] = -dist if abs(hits.get(heading,float("inf"))) > dist else hits[heading]
-    og_room_heading_dist = heading_dist_corners((-my_pos[0],-my_pos[1]),bounds)
-    og_room_headings = [k[0] for k in og_room_heading_dist]
-    og_room_dists = [k[1] for k in og_room_heading_dist]
-    hits = {h:d for h,d in hits.items() if d>0 and d <= distance and not (h in og_room_headings and d in og_room_dists)}
-    to_enemy_vec = (enemy_pos[0] - my_pos[0], enemy_pos[1] - my_pos[1])
-    h_to_enemy = math.atan2(to_enemy_vec[1],to_enemy_vec[0])
-    d_to_enemy = vector_length(to_enemy_vec)
-    if h_to_enemy not in hits and d_to_enemy < distance:
-        hits[h_to_enemy] = d_to_enemy
+        if plot:
+            t.plot_tile(ax=ax)
+        heading_dist_pairs = [(math.atan2(t.enemy_pos[1],t.enemy_pos[0]),vector_length(t.enemy_pos))]   # Store the heading : dist pair to the enemy at Tile t
+        heading_dist_pairs += heading_dist_corners(t.corner_pos,bounds)                                  # Corner heading : dist pairs
+        heading_dist_pairs.append((math.atan2(t.my_pos[1],t.my_pos[0]),vector_length(t.my_pos)))        # heading : dist pair to my_pos in mirrored Tile t
+        for i,hd in enumerate(heading_dist_pairs):
+            h = hd[0]
+            d = hd[1]
+            if d == float(0):   # Because this is equivalent to not shooting at all, and might overwrite hitting an enemy because d == 0
+                continue
+            store_value = -1*d
+            if i == 0:
+                # If the beam will hit me, store a positive value
+                store_value *= -1
+            hits[h] = store_value if d < abs(hits.get(h,float("inf"))) else hits[h]
+    hits = {h:d for h,d in hits.items() if d>0 and d <= distance}
+    if plot:
+        for h,d in hits.items():
+            ax.plot([0,d*math.cos(h)], [0,d*math.sin(h)])
     return len(hits)
-        
-        
